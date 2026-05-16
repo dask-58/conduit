@@ -13,6 +13,7 @@ import (
 
 	"github.com/dask-58/conduit/internal/api"
 	"github.com/dask-58/conduit/internal/db"
+	"github.com/dask-58/conduit/internal/queue"
 	"github.com/joho/godotenv"
 )
 
@@ -24,6 +25,11 @@ func main() {
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
 		log.Fatal("DATABASE_URL is required")
+	}
+
+	redisURL := os.Getenv("REDIS_URL")
+	if redisURL == "" {
+		log.Fatal("REDIS_URL is required")
 	}
 
 	apiKey := os.Getenv("API_KEY")
@@ -49,9 +55,15 @@ func main() {
 		log.Fatalf("apply migrations: %v", err)
 	}
 
+	queueClient, err := queue.NewClient(ctx, redisURL)
+	if err != nil {
+		log.Fatalf("init redis: %v", err)
+	}
+	defer queueClient.Close()
+
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%s", port),
-		Handler:      api.NewRouter(pool, apiKey),
+		Handler:      api.NewRouter(pool, queueClient, apiKey),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,

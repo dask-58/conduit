@@ -6,11 +6,12 @@ import (
 	"strings"
 
 	"github.com/dask-58/conduit/internal/db"
+	"github.com/dask-58/conduit/internal/queue"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func NewRouter(pool *pgxpool.Pool, apiKey string) http.Handler {
+func NewRouter(pool *pgxpool.Pool, queueClient *queue.Client, apiKey string) http.Handler {
 	r := chi.NewRouter()
 	queries := db.NewQueries(pool)
 
@@ -19,7 +20,7 @@ func NewRouter(pool *pgxpool.Pool, apiKey string) http.Handler {
 	r.Group(func(r chi.Router) {
 		r.Use(authorizeBearer(apiKey))
 
-		r.Post("/ingest", ingest(queries))
+		r.Post("/ingest", ingest(queries, queueClient))
 		r.Route("/endpoints", func(r chi.Router) {
 			r.Get("/", listEndpoints(queries))
 			r.Post("/", createEndpoint(queries))
