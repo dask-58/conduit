@@ -26,6 +26,11 @@ func main() {
 		log.Fatal("DATABASE_URL is required")
 	}
 
+	apiKey := os.Getenv("API_KEY")
+	if apiKey == "" {
+		log.Fatal("API_KEY is required")
+	}
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
@@ -46,7 +51,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%s", port),
-		Handler:      api.NewRouter(),
+		Handler:      api.NewRouter(pool, apiKey),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,

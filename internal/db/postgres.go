@@ -2,11 +2,14 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+var ErrNotFound = errors.New("not found")
 
 func NewPostgresPool(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
 	pool, err := pgxpool.New(ctx, databaseURL)
