@@ -23,8 +23,13 @@ CREATE TABLE IF NOT EXISTS delivery_log (
     attempt       INT DEFAULT 0,
     next_retry_at TIMESTAMPTZ,
     response_code INT,
-    delivered_at  TIMESTAMPTZ
+    delivered_at  TIMESTAMPTZ,
+    created_at    TIMESTAMPTZ DEFAULT now(),
+    updated_at    TIMESTAMPTZ DEFAULT now()
 );
+
+ALTER TABLE delivery_log ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();
+ALTER TABLE delivery_log ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
 
 CREATE TABLE IF NOT EXISTS idempotency_keys (
     key        TEXT PRIMARY KEY,
@@ -34,3 +39,4 @@ CREATE TABLE IF NOT EXISTS idempotency_keys (
 CREATE INDEX IF NOT EXISTS idx_delivery_log_status ON delivery_log(status);
 CREATE INDEX IF NOT EXISTS idx_delivery_log_next_retry ON delivery_log(next_retry_at)
     WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS idx_delivery_log_event_id ON delivery_log(event_id);

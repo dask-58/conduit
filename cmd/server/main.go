@@ -14,6 +14,7 @@ import (
 	"github.com/dask-58/conduit/internal/api"
 	"github.com/dask-58/conduit/internal/db"
 	"github.com/dask-58/conduit/internal/queue"
+	"github.com/dask-58/conduit/internal/worker"
 	"github.com/joho/godotenv"
 )
 
@@ -54,6 +55,7 @@ func main() {
 	if err := db.ApplyMigrationFile(ctx, pool, "migrations/001_init.sql"); err != nil {
 		log.Fatalf("apply migrations: %v", err)
 	}
+	queries := db.NewQueries(pool)
 
 	queueClient, err := queue.NewClient(ctx, redisURL)
 	if err != nil {
@@ -79,6 +81,8 @@ func main() {
 			log.Printf("shutdown server: %v", err)
 		}
 	}()
+
+	go worker.Start(ctx, queueClient, queries)
 
 	log.Printf("listening on %s", server.Addr)
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

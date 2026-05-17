@@ -3,13 +3,17 @@ package queue
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/dask-58/conduit/internal/model"
 	"github.com/redis/go-redis/v9"
 )
 
 const JobsKey = "queue:jobs"
+
+var ErrNoJob = errors.New("no job available")
 
 type Client struct {
 	rdb *redis.Client
@@ -51,8 +55,12 @@ func (c *Client) Enqueue(ctx context.Context, job model.DeliveryJob) error {
 }
 
 func (c *Client) Dequeue(ctx context.Context) (model.DeliveryJob, error) {
-	result, err := c.rdb.BRPop(ctx, 0, JobsKey).Result()
+	result, err := c.rdb.BRPop(ctx, time.Second, JobsKey).Result()
 	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return model.DeliveryJob{}, ErrNoJob
+		}
+
 		return model.DeliveryJob{}, fmt.Errorf("dequeue delivery job: %w", err)
 	}
 

@@ -26,6 +26,10 @@ func NewRouter(pool *pgxpool.Pool, queueClient *queue.Client, apiKey string) htt
 			r.Post("/", createEndpoint(queries))
 			r.Delete("/{id}", deleteEndpoint(queries))
 		})
+		r.Route("/events", func(r chi.Router) {
+			r.Get("/", listEvents(queries))
+			r.Get("/{id}/deliveries", getEventDeliveries(queries))
+		})
 	})
 
 	return r
