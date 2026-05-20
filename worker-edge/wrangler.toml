@@ -1,0 +1,7 @@
+name = "conduit-edge"
+main = "src/index.ts"
+compatibility_date = "2026-05-20"
+
+[[kv_namespaces]]
+binding = "RATELIMIT"
+id = "25428c7b83da47b595657d8e45999601"
