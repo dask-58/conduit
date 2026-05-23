@@ -17,7 +17,7 @@ func ingest(queries *db.Queries, queueClient *queue.Client) http.HandlerFunc {
 			return
 		}
 
-		source := r.Header.Get("X-Conduit-Source")
+		source := r.Header.Get("X-Github-Event")
 		if source == "" {
 			source = "unknown"
 		}
