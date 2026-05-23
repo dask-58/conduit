@@ -1,0 +1,8 @@
+.git
+node_modules
+.env
+.dev.vars
+worker-edge/
+uptime/
+dashboard/
+*_test.go
