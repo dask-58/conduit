@@ -6,10 +6,19 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
 const discordEmbedColor = 3066993
+
+const (
+	discordContentLimit          = 2000
+	discordEmbedTotalCharLimit   = 6000
+	discordEmbedTitleLimit       = 256
+	discordEmbedDescriptionLimit = 2048
+	discordEmbedFooterLimit      = 2048
+)
 
 type DiscordDestination struct {
 	url        string
@@ -60,11 +69,11 @@ type discordMessage struct {
 }
 
 type discordEmbed struct {
-	Title       string        `json:"title"`
-	Description string        `json:"description"`
-	URL         string        `json:"url,omitempty"`
-	Color       int           `json:"color"`
-	Footer      discordFooter `json:"footer"`
+	Title       string         `json:"title"`
+	Description string         `json:"description"`
+	URL         string         `json:"url,omitempty"`
+	Color       int            `json:"color"`
+	Footer      *discordFooter `json:"footer,omitempty"`
 }
 
 type discordFooter struct {
@@ -82,7 +91,7 @@ func buildDiscordMessage(payload []byte) (discordMessage, error) {
 	description := "New GitHub activity."
 	color := discordEmbedColor
 	url := ""
-	footer := discordFooter{Text: "unknown"}
+	var footerText string
 	content := "GitHub activity"
 
 	switch detectEventType(event) {
@@ -106,8 +115,8 @@ func buildDiscordMessage(payload []byte) (discordMessage, error) {
 
 		title = fmt.Sprintf("push · %s · %s", fallback(repoName, "unknown"), fallback(branch, "unknown"))
 		description = fallback(commitMsg, "unknown")
-		url = fallback(repoURL, "unknown")
-		footer = discordFooter{Text: fmt.Sprintf("pushed by %s", fallback(pusherName, "unknown"))}
+		url = repoURL
+		footerText = fmt.Sprintf("pushed by %s", fallback(pusherName, "unknown"))
 		content = fmt.Sprintf("%s\n%s", title, description)
 	case "pull_request":
 		action := stringValue(event["action"])
@@ -124,21 +133,29 @@ func buildDiscordMessage(payload []byte) (discordMessage, error) {
 		title = fmt.Sprintf("✅ webhook connected · %s", fallback(repoName, "unknown"))
 		description = fallback(stringValue(event["zen"]), "unknown")
 		color = 3447003
-		footer = discordFooter{Text: "unknown"}
 		content = fmt.Sprintf("%s\n%s", title, description)
 	}
 
+	title = truncateString(title, discordEmbedTitleLimit)
+	description = truncateString(description, discordEmbedDescriptionLimit)
+	footerText = truncateString(footerText, discordEmbedFooterLimit)
+	content = truncateString(content, discordContentLimit)
+	url = sanitizeDiscordURL(url)
+
+	embed := discordEmbed{
+		Title:       title,
+		Description: description,
+		URL:         url,
+		Color:       color,
+	}
+	if footerText != "" {
+		embed.Footer = &discordFooter{Text: footerText}
+	}
+	embed = trimEmbedToTotalLimit(embed)
+
 	return discordMessage{
 		Content: content,
-		Embeds: []discordEmbed{
-			{
-				Title:       title,
-				Description: description,
-				URL:         url,
-				Color:       color,
-				Footer:      footer,
-			},
-		},
+		Embeds:  []discordEmbed{embed},
 	}, nil
 }
 
@@ -202,4 +219,53 @@ func fallback(value string, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+func sanitizeDiscordURL(rawURL string) string {
+	if rawURL == "" {
+		return ""
+	}
+
+	parsedURL, err := url.Parse(rawURL)
+	if err != nil {
+		return ""
+	}
+
+	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+		return ""
+	}
+
+	if parsedURL.Host == "" {
+		return ""
+	}
+
+	return rawURL
+}
+
+func truncateString(value string, limit int) string {
+	if len(value) <= limit {
+		return value
+	}
+
+	return value[:limit]
+}
+
+func trimEmbedToTotalLimit(embed discordEmbed) discordEmbed {
+	total := len(embed.Title) + len(embed.Description)
+	if embed.Footer != nil {
+		total += len(embed.Footer.Text)
+	}
+
+	if total <= discordEmbedTotalCharLimit {
+		return embed
+	}
+
+	overflow := total - discordEmbedTotalCharLimit
+	if overflow >= len(embed.Description) {
+		embed.Description = ""
+		return embed
+	}
+
+	embed.Description = embed.Description[:len(embed.Description)-overflow]
+	return embed
 }
