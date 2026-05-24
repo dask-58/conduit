@@ -85,18 +85,27 @@ func buildDiscordMessage(payload []byte) (discordMessage, error) {
 
 	switch detectEventType(event) {
 	case "push":
-		repository := nestedMap(event, "repository")
-		headCommit := nestedMap(event, "head_commit")
-		pusher := nestedMap(event, "pusher")
+		data := map[string]interface{}(event)
+		ref, _ := data["ref"].(string)
+		branch := strings.TrimPrefix(ref, "refs/heads/")
 
-		repoName = fallback(stringValue(repository["name"]), "unknown")
-		branch := fallback(branchName(event), "unknown")
-		description = fallback(stringValue(headCommit["message"]), "unknown")
-		url = fallback(stringValue(repository["html_url"]), "unknown")
-		pusherName := fallback(stringValue(pusher["name"]), "unknown")
+		var commitMsg, pusherName, repoName, repoURL string
 
-		title = fmt.Sprintf("push · %s · %s", repoName, branch)
-		footer = discordFooter{Text: fmt.Sprintf("pushed by %s", pusherName)}
+		if hc, ok := data["head_commit"].(map[string]interface{}); ok {
+			commitMsg, _ = hc["message"].(string)
+		}
+		if p, ok := data["pusher"].(map[string]interface{}); ok {
+			pusherName, _ = p["name"].(string)
+		}
+		if r, ok := data["repository"].(map[string]interface{}); ok {
+			repoName, _ = r["name"].(string)
+			repoURL, _ = r["html_url"].(string)
+		}
+
+		title = fmt.Sprintf("push · %s · %s", fallback(repoName, "unknown"), fallback(branch, "unknown"))
+		description = fallback(commitMsg, "unknown")
+		url = fallback(repoURL, "unknown")
+		footer = discordFooter{Text: fmt.Sprintf("pushed by %s", fallback(pusherName, "unknown"))}
 	case "pull_request":
 		action := stringValue(event["action"])
 		if action == "" {
