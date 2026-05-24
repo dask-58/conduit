@@ -41,9 +41,10 @@ func TestDiscordDestinationSendPushPayload(t *testing.T) {
 		"ref": "refs/heads/master",
 		"repository": {
 			"name": "mcpbox",
-			"owner": {
-				"login": "dask-58"
-			}
+			"html_url": "https://github.com/dask-58/mcpbox"
+		},
+		"pusher": {
+			"name": "dask-58"
 		},
 		"head_commit": {
 			"message": "ship day 10"
@@ -63,8 +64,9 @@ func TestDiscordDestinationSendPushPayload(t *testing.T) {
 	require.Len(t, received.Embeds, 1)
 
 	embed := received.Embeds[0]
-	assert.Equal(t, "push to mcpbox · master", embed.Title)
+	assert.Equal(t, "push · mcpbox · master", embed.Title)
 	assert.Equal(t, "ship day 10", embed.Description)
+	assert.Equal(t, "https://github.com/dask-58/mcpbox", embed.URL)
 	assert.Equal(t, discordEmbedColor, embed.Color)
-	assert.Equal(t, "dask-58 · just now", embed.Footer.Text)
+	assert.Equal(t, "pushed by dask-58", embed.Footer.Text)
 }

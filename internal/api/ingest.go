@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 
 	"github.com/dask-58/conduit/internal/db"
@@ -11,8 +12,13 @@ import (
 
 func ingest(queries *db.Queries, queueClient *queue.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var payload json.RawMessage
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		payload, err := io.ReadAll(r.Body)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid json body"})
+			return
+		}
+
+		if !json.Valid(payload) {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid json body"})
 			return
 		}
@@ -22,7 +28,7 @@ func ingest(queries *db.Queries, queueClient *queue.Client) http.HandlerFunc {
 			source = "unknown"
 		}
 
-		event, err := queries.InsertEvent(r.Context(), source, payload)
+		event, err := queries.InsertEvent(r.Context(), source, json.RawMessage(payload))
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "insert event"})
 			return
@@ -39,7 +45,7 @@ func ingest(queries *db.Queries, queueClient *queue.Client) http.HandlerFunc {
 				EventID:    event.ID,
 				EndpointID: endpoint.ID,
 				Attempt:    0,
-				Payload:    event.Payload,
+				Payload:    json.RawMessage(payload),
 			}
 
 			if err := queueClient.Enqueue(r.Context(), job); err != nil {
