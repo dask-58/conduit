@@ -17,6 +17,13 @@ func TestResolveDiscordDestination(t *testing.T) {
 	require.Truef(t, ok, "Resolve() returned %T, want *DiscordDestination", destination)
 }
 
+func TestResolveLegacyDiscordDestination(t *testing.T) {
+	destination := Resolve("https://discordapp.com/api/webhooks/123/abc")
+
+	_, ok := destination.(*DiscordDestination)
+	require.Truef(t, ok, "Resolve() returned %T, want *DiscordDestination", destination)
+}
+
 func TestResolveGenericDestination(t *testing.T) {
 	destination := Resolve("https://example.com/webhook")
 
@@ -66,6 +73,34 @@ func TestDiscordDestinationSendPushPayload(t *testing.T) {
 	embed := received.Embeds[0]
 	assert.Equal(t, "push · mcpbox · master", embed.Title)
 	assert.Equal(t, "ship day 10", embed.Description)
+	assert.Equal(t, "https://github.com/dask-58/mcpbox", embed.URL)
+	assert.Equal(t, discordEmbedColor, embed.Color)
+	assert.Equal(t, "pushed by dask-58", embed.Footer.Text)
+}
+
+func TestBuildDiscordMessageFromGitHubPushPayload(t *testing.T) {
+	payload := []byte(`{
+		"ref": "refs/heads/master",
+		"pusher": {
+			"name": "dask-58",
+			"email": "140686560+dask-58@users.noreply.github.com"
+		},
+		"repository": {
+			"name": "mcpbox",
+			"html_url": "https://github.com/dask-58/mcpbox"
+		},
+		"head_commit": {
+			"message": "test: conduit smoke test 5"
+		}
+	}`)
+
+	message, err := buildDiscordMessage(payload)
+	require.NoError(t, err)
+	require.Len(t, message.Embeds, 1)
+
+	embed := message.Embeds[0]
+	assert.Equal(t, "push · mcpbox · master", embed.Title)
+	assert.Equal(t, "test: conduit smoke test 5", embed.Description)
 	assert.Equal(t, "https://github.com/dask-58/mcpbox", embed.URL)
 	assert.Equal(t, discordEmbedColor, embed.Color)
 	assert.Equal(t, "pushed by dask-58", embed.Footer.Text)

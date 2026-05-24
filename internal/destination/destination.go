@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -24,7 +25,7 @@ type GenericDestination struct {
 }
 
 func Resolve(url string) Destination {
-	if strings.Contains(strings.ToLower(url), "discord.com") {
+	if isDiscordWebhookURL(url) {
 		return &DiscordDestination{
 			url:        url,
 			httpClient: defaultHTTPClient,
@@ -69,6 +70,21 @@ func (d *GenericDestination) Send(payload []byte) error {
 
 func (d *GenericDestination) LastStatus() int {
 	return d.lastStatus
+}
+
+func isDiscordWebhookURL(rawURL string) bool {
+	parsedURL, err := url.Parse(rawURL)
+	if err != nil {
+		return strings.Contains(strings.ToLower(rawURL), "discord.com") ||
+			strings.Contains(strings.ToLower(rawURL), "discordapp.com")
+	}
+
+	host := strings.ToLower(parsedURL.Hostname())
+	if !strings.HasSuffix(host, "discord.com") && !strings.HasSuffix(host, "discordapp.com") {
+		return false
+	}
+
+	return strings.HasPrefix(parsedURL.EscapedPath(), "/api/webhooks/")
 }
 
 var defaultHTTPClient = &http.Client{
