@@ -55,7 +55,8 @@ func (d *DiscordDestination) LastStatus() int {
 }
 
 type discordMessage struct {
-	Embeds []discordEmbed `json:"embeds"`
+	Content string         `json:"content,omitempty"`
+	Embeds  []discordEmbed `json:"embeds"`
 }
 
 type discordEmbed struct {
@@ -82,6 +83,7 @@ func buildDiscordMessage(payload []byte) (discordMessage, error) {
 	color := discordEmbedColor
 	url := ""
 	footer := discordFooter{Text: "unknown"}
+	content := "GitHub activity"
 
 	switch detectEventType(event) {
 	case "push":
@@ -106,6 +108,7 @@ func buildDiscordMessage(payload []byte) (discordMessage, error) {
 		description = fallback(commitMsg, "unknown")
 		url = fallback(repoURL, "unknown")
 		footer = discordFooter{Text: fmt.Sprintf("pushed by %s", fallback(pusherName, "unknown"))}
+		content = fmt.Sprintf("%s\n%s", title, description)
 	case "pull_request":
 		action := stringValue(event["action"])
 		if action == "" {
@@ -116,14 +119,17 @@ func buildDiscordMessage(payload []byte) (discordMessage, error) {
 		if description == "" {
 			description = "Pull request activity."
 		}
+		content = fmt.Sprintf("%s\n%s", title, description)
 	case "ping":
 		title = fmt.Sprintf("✅ webhook connected · %s", fallback(repoName, "unknown"))
 		description = fallback(stringValue(event["zen"]), "unknown")
 		color = 3447003
 		footer = discordFooter{Text: "unknown"}
+		content = fmt.Sprintf("%s\n%s", title, description)
 	}
 
 	return discordMessage{
+		Content: content,
 		Embeds: []discordEmbed{
 			{
 				Title:       title,

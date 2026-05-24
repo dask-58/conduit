@@ -69,6 +69,7 @@ func TestDiscordDestinationSendPushPayload(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, destination.LastStatus())
 
 	require.Len(t, received.Embeds, 1)
+	assert.Equal(t, "push · mcpbox · master\nship day 10", received.Content)
 
 	embed := received.Embeds[0]
 	assert.Equal(t, "push · mcpbox · master", embed.Title)
@@ -96,6 +97,7 @@ func TestBuildDiscordMessageFromGitHubPushPayload(t *testing.T) {
 
 	message, err := buildDiscordMessage(payload)
 	require.NoError(t, err)
+	assert.Equal(t, "push · mcpbox · master\ntest: conduit smoke test 5", message.Content)
 	require.Len(t, message.Embeds, 1)
 
 	embed := message.Embeds[0]
